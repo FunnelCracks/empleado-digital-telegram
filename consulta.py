@@ -16,8 +16,6 @@ marcado y por tanto no rompe nada.
 
 import logging
 
-import anthropic
-
 import ajustes
 import almacen
 import claude_api
@@ -152,16 +150,9 @@ class LimiteAlcanzado(Exception):
     """Se ha agotado el tope de gasto del mes."""
 
 
-class ProblemaConClaude(Exception):
-    """Fallo que hay que contarle al usuario en su idioma.
-
-    El atributo `motivo` dice cuál, para elegir el mensaje: demanda,
-    conexion, credito, clave o desconocido.
-    """
-
-    def __init__(self, motivo: str):
-        super().__init__(motivo)
-        self.motivo = motivo
+# Vive en claude_api porque le pasa a cualquier llamada a la API, no solo a
+# esta. Se reexporta aquí para no obligar a nadie a cambiar de import.
+ProblemaConClaude = claude_api.ProblemaConClaude
 
 
 async def preguntar(chat_id: int, pregunta: str) -> tuple[str, object]:
@@ -182,7 +173,7 @@ async def preguntar(chat_id: int, pregunta: str) -> tuple[str, object]:
     system = construir_system(almacen.leer_config(), nombres)
     mensajes = historial(chat_id) + [{"role": "user", "content": pregunta}]
 
-    try:
+    async with claude_api.errores_traducidos():
         respuesta = await claude_api.cliente().messages.create(
             model=ajustes.MODELO,
             max_tokens=ajustes.MAX_TOKENS_RESPUESTA,
@@ -192,24 +183,6 @@ async def preguntar(chat_id: int, pregunta: str) -> tuple[str, object]:
             system=system,
             messages=mensajes,
         )
-    except anthropic.AuthenticationError as error:
-        raise ProblemaConClaude("clave") from error
-    except anthropic.RateLimitError as error:
-        raise ProblemaConClaude("demanda") from error
-    except anthropic.BadRequestError as error:
-        # El saldo agotado llega como un 400, y es el fallo mas frecuente
-        # entre quien acaba de crearse la cuenta.
-        if "credit" in str(error).lower() or "balance" in str(error).lower():
-            raise ProblemaConClaude("credito") from error
-        log.exception("Peticion rechazada por la API")
-        raise ProblemaConClaude("desconocido") from error
-    except anthropic.APIConnectionError as error:
-        raise ProblemaConClaude("conexion") from error
-    except anthropic.APIStatusError as error:
-        if error.status_code in (429, 529, 503):
-            raise ProblemaConClaude("demanda") from error
-        log.exception("Error de la API: %s", error.status_code)
-        raise ProblemaConClaude("desconocido") from error
 
     texto = claude_api.texto_de(respuesta)
     uso = respuesta.usage

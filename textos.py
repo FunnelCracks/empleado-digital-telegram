@@ -377,6 +377,43 @@ def problema_al_responder(motivo: str) -> str:
     return _PROBLEMAS.get(motivo, _PROBLEMAS["desconocido"])
 
 
+# Los mismos fallos, pero contados a quien está subiendo un documento. Cambia
+# el tono porque cambia el interlocutor: subir documentos solo puede hacerlo el
+# owner, así que aquí no vale decirle "avisa al administrador". Se le dice qué
+# tiene que ir a tocar él.
+_PROBLEMAS_AL_SUBIR = {
+    "demanda": (
+        "⏳ Ahora mismo hay mucha demanda y no me han dejado leerlo.\n\n"
+        "Vuelve a mandármelo en unos segundos, suele arreglarse solo."
+    ),
+    "conexion": (
+        "📡 No he conseguido conectarme para leer ese documento.\n\n"
+        "Vuelve a mandármelo en un momento."
+    ),
+    "credito": (
+        "💳 Tu cuenta de Claude se ha quedado sin saldo, así que no he podido "
+        "leer el documento.\n\n"
+        "Entra en console.anthropic.com y recárgala. En cuanto lo hagas, vuelve "
+        "a mandármelo y lo guardo."
+    ),
+    "clave": (
+        "🔑 La clave de Claude que tengo configurada no es válida, así que no "
+        "he podido leer el documento.\n\n"
+        "Revísala donde tengas alojado el bot. Tiene que empezar por sk-ant- y "
+        "estar entera, sin espacios ni comillas alrededor. Al copiarla se corta "
+        "con muchísima facilidad, y es lo que falla casi siempre."
+    ),
+    "desconocido": (
+        "😕 Algo no ha ido bien y no he podido leer ese documento.\n\n"
+        "Vuelve a mandármelo en un momento."
+    ),
+}
+
+
+def problema_al_subir(motivo: str) -> str:
+    return _PROBLEMAS_AL_SUBIR.get(motivo, _PROBLEMAS_AL_SUBIR["desconocido"])
+
+
 def voz_entendida(texto: str) -> str:
     return f"🎤 Te he entendido: «{texto}»"
 

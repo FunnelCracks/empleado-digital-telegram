@@ -193,6 +193,12 @@ async def recibir_documento(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             await copia_automatica_si_toca(context)
         except extraccion.ErrorExtraccion as error:
             await responder(update, textos.no_he_podido_leer(str(error)))
+        except claude_api.ProblemaConClaude as error:
+            # Subir un documento llama a Claude para contar los tokens, asi
+            # que aqui es donde se nota por primera vez que la clave esta mal
+            # o que no hay saldo. Merece un mensaje que diga qué hacer.
+            log.warning("Subida fallida por la API: %s", error.motivo)
+            await responder(update, textos.problema_al_subir(error.motivo))
         except Exception:
             log.exception("Fallo procesando %s", nombre)
             await responder(update, textos.ERROR_GENERICO)
@@ -216,6 +222,9 @@ async def recibir_foto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await copia_automatica_si_toca(context)
         except extraccion.ErrorExtraccion as error:
             await responder(update, textos.no_he_podido_leer(str(error)))
+        except claude_api.ProblemaConClaude as error:
+            log.warning("Foto fallida por la API: %s", error.motivo)
+            await responder(update, textos.problema_al_subir(error.motivo))
         except Exception:
             log.exception("Fallo procesando una foto")
             await responder(update, textos.ERROR_GENERICO)

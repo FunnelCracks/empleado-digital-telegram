@@ -23,11 +23,15 @@ os.environ["OWNER_CHAT_ID"] = ""
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import anthropic  # noqa: E402
+import httpx  # noqa: E402
+
 import ajustes  # noqa: E402
 import almacen  # noqa: E402
 import claude_api  # noqa: E402
 import comun  # noqa: E402
 import consulta  # noqa: E402
+import textos  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -313,6 +317,122 @@ class LlamadaCompleta(unittest.IsolatedAsyncioTestCase):
         respuesta, _uso = await consulta.preguntar(8, "algo")
         self.assertEqual(respuesta, "")
         self.assertEqual(consulta.historial(8), [])
+
+
+# ---------------------------------------------------------------------------
+# Traducción de los fallos de la API
+# ---------------------------------------------------------------------------
+
+
+def _error_de_api(clase, codigo, cuerpo="algo ha ido mal"):
+    """Fabrica una excepción del SDK sin hacer ninguna llamada de verdad."""
+    peticion = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    respuesta = httpx.Response(codigo, request=peticion, text=cuerpo)
+    return clase(cuerpo, response=respuesta, body=None)
+
+
+class TraduccionDeErrores(unittest.IsolatedAsyncioTestCase):
+    """Cada fallo de la API tiene que salir con su motivo.
+
+    Estos motivos son los que eligen el mensaje que lee el usuario, así que
+    equivocarse aquí es contarle que recargue saldo cuando lo que pasa es que
+    la clave está mal.
+    """
+
+    async def _motivo_de(self, error):
+        with self.assertRaises(claude_api.ProblemaConClaude) as capturado:
+            async with claude_api.errores_traducidos():
+                raise error
+        return capturado.exception.motivo
+
+    async def test_clave_invalida(self) -> None:
+        error = _error_de_api(anthropic.AuthenticationError, 401, "invalid x-api-key")
+        self.assertEqual(await self._motivo_de(error), "clave")
+
+    async def test_sin_saldo(self) -> None:
+        error = _error_de_api(
+            anthropic.BadRequestError, 400, "your credit balance is too low"
+        )
+        self.assertEqual(await self._motivo_de(error), "credito")
+
+    async def test_demasiada_demanda(self) -> None:
+        error = _error_de_api(anthropic.RateLimitError, 429)
+        self.assertEqual(await self._motivo_de(error), "demanda")
+
+    async def test_un_400_que_no_es_de_saldo_no_se_confunde(self) -> None:
+        error = _error_de_api(anthropic.BadRequestError, 400, "campo mal formado")
+        self.assertEqual(await self._motivo_de(error), "desconocido")
+
+    async def test_lo_que_no_es_de_la_api_pasa_de_largo(self) -> None:
+        """Un fallo del disco no puede disfrazarse de problema de Claude."""
+        with self.assertRaises(ValueError):
+            async with claude_api.errores_traducidos():
+                raise ValueError("esto no es de la API")
+
+    async def test_consulta_reexporta_la_misma_excepcion(self) -> None:
+        """Quien capture consulta.ProblemaConClaude tiene que seguir cazándola."""
+        self.assertIs(consulta.ProblemaConClaude, claude_api.ProblemaConClaude)
+
+
+class ContarTokensTraduceElFallo(unittest.IsolatedAsyncioTestCase):
+    """Contar tokens es la primera llamada a Claude al subir un documento.
+
+    Es donde se nota que la clave esta mal, y hasta ahora salia por el except
+    generico con un "algo no ha ido bien" que no decia que hacer.
+    """
+
+    def setUp(self) -> None:
+        self.anterior = claude_api._cliente
+
+    def tearDown(self) -> None:
+        claude_api._cliente = self.anterior
+
+    async def test_una_clave_mala_sale_como_problema_con_motivo(self) -> None:
+        class ContadorQueFalla:
+            async def count_tokens(self, **_):
+                raise _error_de_api(
+                    anthropic.AuthenticationError, 401, "invalid x-api-key"
+                )
+
+        class ClienteFalso:
+            messages = ContadorQueFalla()
+
+        claude_api._cliente = ClienteFalso()
+        with self.assertRaises(claude_api.ProblemaConClaude) as capturado:
+            await claude_api.contar_tokens("un documento cualquiera")
+        self.assertEqual(capturado.exception.motivo, "clave")
+
+    async def test_un_texto_vacio_no_llega_a_llamar(self) -> None:
+        claude_api._cliente = None
+        self.assertEqual(await claude_api.contar_tokens("   "), 0)
+
+
+class MensajesDeSubida(unittest.TestCase):
+    """El que sube documentos es siempre el owner, y el mensaje lo refleja."""
+
+    def test_cada_motivo_tiene_su_mensaje(self) -> None:
+        vistos = set()
+        for motivo in ("demanda", "conexion", "credito", "clave", "desconocido"):
+            mensaje = textos.problema_al_subir(motivo)
+            self.assertTrue(mensaje.strip())
+            vistos.add(mensaje)
+        self.assertEqual(len(vistos), 5, "hay mensajes repetidos entre motivos")
+
+    def test_un_motivo_desconocido_no_revienta(self) -> None:
+        self.assertEqual(
+            textos.problema_al_subir("algo_que_no_existe"),
+            textos.problema_al_subir("desconocido"),
+        )
+
+    def test_el_de_la_clave_dice_que_hacer(self) -> None:
+        """El fallo mas comun: la clave pegada a medias."""
+        mensaje = textos.problema_al_subir("clave")
+        self.assertIn("sk-ant-", mensaje)
+
+    def test_no_manda_al_owner_a_avisar_al_owner(self) -> None:
+        """Quien lee esto ES el administrador, decirle que lo avise es absurdo."""
+        for motivo in ("credito", "clave"):
+            self.assertNotIn("administrador", textos.problema_al_subir(motivo))
 
 
 def tearDownModule() -> None:

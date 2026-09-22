@@ -7,7 +7,9 @@ consulta.py, pero usa este mismo cliente.
 
 import base64
 import logging
+from contextlib import asynccontextmanager
 
+import anthropic
 import httpx
 from anthropic import AsyncAnthropic
 
@@ -31,6 +33,52 @@ INSTRUCCIONES_TRANSCRIPCION = (
 )
 
 
+class ProblemaConClaude(Exception):
+    """Fallo de la API que hay que contarle al usuario en su idioma.
+
+    El atributo `motivo` dice cuál, para elegir el mensaje: demanda,
+    conexion, credito, clave o desconocido.
+
+    Vive aquí y no en consulta.py porque le pasa a cualquier llamada a la
+    API, no solo a la de responder preguntas. Subir un documento también
+    llama a Claude para contar los tokens, y ese es justo el primer sitio
+    donde se nota que la clave está mal.
+    """
+
+    def __init__(self, motivo: str):
+        super().__init__(motivo)
+        self.motivo = motivo
+
+
+@asynccontextmanager
+async def errores_traducidos():
+    """Convierte los fallos del SDK en un ProblemaConClaude con su motivo.
+
+    Un unico sitio para esta traduccion. Si estuviera repetida en cada
+    llamada, cada una acabaria contando el mismo fallo de una manera.
+    """
+    try:
+        yield
+    except anthropic.AuthenticationError as error:
+        raise ProblemaConClaude("clave") from error
+    except anthropic.RateLimitError as error:
+        raise ProblemaConClaude("demanda") from error
+    except anthropic.BadRequestError as error:
+        # El saldo agotado llega como un 400, y es el fallo mas frecuente
+        # entre quien acaba de crearse la cuenta.
+        if "credit" in str(error).lower() or "balance" in str(error).lower():
+            raise ProblemaConClaude("credito") from error
+        log.exception("Peticion rechazada por la API")
+        raise ProblemaConClaude("desconocido") from error
+    except anthropic.APIConnectionError as error:
+        raise ProblemaConClaude("conexion") from error
+    except anthropic.APIStatusError as error:
+        if error.status_code in (429, 529, 503):
+            raise ProblemaConClaude("demanda") from error
+        log.exception("Error de la API: %s", error.status_code)
+        raise ProblemaConClaude("desconocido") from error
+
+
 def cliente() -> AsyncAnthropic:
     """Cliente compartido. Se crea la primera vez que hace falta.
 
@@ -52,10 +100,11 @@ async def contar_tokens(texto: str) -> int:
     """
     if not texto.strip():
         return 0
-    respuesta = await cliente().messages.count_tokens(
-        model=ajustes.MODELO,
-        messages=[{"role": "user", "content": texto}],
-    )
+    async with errores_traducidos():
+        respuesta = await cliente().messages.count_tokens(
+            model=ajustes.MODELO,
+            messages=[{"role": "user", "content": texto}],
+        )
     return respuesta.input_tokens
 
 
@@ -65,51 +114,53 @@ async def leer_pdf_escaneado(datos: bytes) -> tuple[str, object]:
     Solo se llama cuando pypdf no ha sacado texto, es decir, cuando el PDF
     es un escaneo. Devuelve el texto y el objeto de uso para contabilizarlo.
     """
-    respuesta = await cliente().messages.create(
-        model=ajustes.MODELO,
-        max_tokens=MAX_TOKENS_TRANSCRIPCION,
-        thinking={"type": "disabled"},
-        system=INSTRUCCIONES_TRANSCRIPCION,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "document",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "application/pdf",
-                        "data": base64.b64encode(datos).decode("ascii"),
+    async with errores_traducidos():
+        respuesta = await cliente().messages.create(
+            model=ajustes.MODELO,
+            max_tokens=MAX_TOKENS_TRANSCRIPCION,
+            thinking={"type": "disabled"},
+            system=INSTRUCCIONES_TRANSCRIPCION,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "application/pdf",
+                            "data": base64.b64encode(datos).decode("ascii"),
+                        },
                     },
-                },
-                {"type": "text", "text": "Transcribe el texto de este documento."},
-            ],
-        }],
-    )
+                    {"type": "text", "text": "Transcribe el texto de este documento."},
+                ],
+            }],
+        )
     return texto_de(respuesta), respuesta.usage
 
 
 async def leer_imagen(datos: bytes, tipo_mime: str = "image/jpeg") -> tuple[str, object]:
     """Saca el texto de una foto. Es frecuente: mandan fotos del catálogo."""
-    respuesta = await cliente().messages.create(
-        model=ajustes.MODELO,
-        max_tokens=MAX_TOKENS_TRANSCRIPCION,
-        thinking={"type": "disabled"},
-        system=INSTRUCCIONES_TRANSCRIPCION,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": tipo_mime,
-                        "data": base64.b64encode(datos).decode("ascii"),
+    async with errores_traducidos():
+        respuesta = await cliente().messages.create(
+            model=ajustes.MODELO,
+            max_tokens=MAX_TOKENS_TRANSCRIPCION,
+            thinking={"type": "disabled"},
+            system=INSTRUCCIONES_TRANSCRIPCION,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": tipo_mime,
+                            "data": base64.b64encode(datos).decode("ascii"),
+                        },
                     },
-                },
-                {"type": "text", "text": "Transcribe el texto que aparece en esta imagen."},
-            ],
-        }],
-    )
+                    {"type": "text", "text": "Transcribe el texto que aparece en esta imagen."},
+                ],
+            }],
+        )
     return texto_de(respuesta), respuesta.usage
 
 
