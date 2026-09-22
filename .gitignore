@@ -1,0 +1,48 @@
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+service-account*.json
+
+# Dependencias
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Builds y salidas
+dist/
+build/
+*.log
+logs/
+
+# Base de datos local
+*.sqlite
+*.sqlite3
+*.db
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Documento interno de especificacion, no va al repositorio
+ESPECIFICACION.md
+
+# Datos locales. En Railway esto es un volume, nunca va al repositorio.
+data/
+
+# Respuestas largas de Claude en local, no van al repositorio.
+respuesta-*.md
+
+# Documentacion interna de trabajo. No va al repositorio publico.
+CLAUDE.md
+HISTORIAL-INTERNO.md
+pruebas/MANUALES.md

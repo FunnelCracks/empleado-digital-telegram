@@ -1,0 +1,25 @@
+# Configuracion de despliegue en Railway.
+#
+# Este fichero se lee en cada despliegue. Lo importante que resuelve:
+# el bot se llama bot.py, y el detector automatico de Railway solo busca
+# nombres tipo main.py o app.py, asi que sin startCommand construiria bien
+# y luego no arrancaria nada.
+#
+# El volume NO se declara aqui porque Railway no lo permite por fichero.
+# Se adjunta a mano en /app/data y viaja dentro de la plantilla.
+
+[build]
+# Se deja explicito para que la plantilla no cambie de comportamiento
+# el dia que Railway mueva el constructor por defecto.
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "python bot.py"
+
+# Si el proceso se cae, Railway lo vuelve a levantar. Un corte de red con
+# Telegram no puede dejar el bot muerto hasta que el dueno se de cuenta.
+restartPolicyType = "ON_FAILURE"
+
+# Diez intentos y para. Sin tope, un bot con el token mal escrito se
+# reiniciaria en bucle toda la noche gastando credito para nada.
+restartPolicyMaxRetries = 10
