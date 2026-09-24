@@ -159,12 +159,12 @@ class ConstruccionDelSystem(unittest.IsolatedAsyncioTestCase):
         self.assertIn("cache_control", bloques[-1])
 
     def test_la_marca_usa_una_hora(self) -> None:
-        """Decisión D1: con 5 minutos casi ninguna escritura llega a leerse."""
+        """Con 5 minutos y preguntas espaciadas casi ninguna escritura llega a leerse."""
         marca = self._system()[-1]["cache_control"]
         self.assertEqual(marca, {"type": "ephemeral", "ttl": "1h"})
 
     def test_los_documentos_van_siempre_en_el_mismo_orden(self) -> None:
-        """Decisión D7. Si el orden bailara, la caché se caería en silencio."""
+        """Si el orden bailara, la caché se caería en silencio."""
         primero = consulta.bloque_documentos(["tarifas_2026", "manual_calidad"])
         segundo = consulta.bloque_documentos(["manual_calidad", "tarifas_2026"])
         self.assertEqual(primero, segundo)
@@ -249,6 +249,13 @@ class Historial(unittest.TestCase):
         self.assertEqual(consulta.historial(1)[0]["content"], "de uno")
         self.assertEqual(consulta.historial(2)[0]["content"], "de dos")
 
+    def test_olvidar_todo_al_cambiar_los_documentos(self) -> None:
+        consulta.recordar(1, "¿Cuántos documentos tienes?", "Tengo dos.")
+        consulta.recordar(2, "algo", "respuesta")
+        consulta.olvidar_todo()
+        self.assertEqual(consulta.historial(1), [])
+        self.assertEqual(consulta.historial(2), [])
+
     def test_olvidar(self) -> None:
         consulta.recordar(1, "algo", "respuesta")
         consulta.olvidar(1)
@@ -282,7 +289,7 @@ class LlamadaCompleta(unittest.IsolatedAsyncioTestCase):
         llamada = self.cliente.messages.llamadas[0]
         self.assertEqual(llamada["model"], "claude-sonnet-5")
         self.assertEqual(llamada["max_tokens"], 1500)
-        # Decisión D3: sin razonamiento, o se comería los 1500 tokens.
+        # Sin razonamiento, o se comería los 1500 tokens.
         self.assertEqual(llamada["thinking"], {"type": "disabled"})
 
     async def test_la_pregunta_va_despues_del_historial(self) -> None:

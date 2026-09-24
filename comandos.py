@@ -114,6 +114,7 @@ async def pulsacion_borrar(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     await almacen.registrar_evento("documento_borrado", pulsacion.message.chat.id, nombre)
+    consulta.olvidar_todo()
     quedan = len(documentos_cargados())
     await pulsacion.edit_message_text(
         textos.documento_borrado(nombre, quedan), parse_mode="HTML"
@@ -140,6 +141,7 @@ async def _guardar_y_responder(
     sobrescrito = await almacen.guardar_documento(
         nombre, documento.texto, tokens, documento.origen
     )
+    consulta.olvidar_todo()
 
     # Leer un escaneado o una foto cuesta dinero, así que se contabiliza.
     if documento.uso is not None:

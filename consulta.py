@@ -137,6 +137,17 @@ def olvidar(chat_id: int) -> None:
     _historiales.pop(chat_id, None)
 
 
+def olvidar_todo() -> None:
+    """Se llama cuando cambian los documentos.
+
+    Las respuestas anteriores hablan de la documentación que había entonces.
+    Si se quedaran en el historial, el bot seguiría citando un documento ya
+    borrado o diciendo que tiene los que tenía antes, porque se fía de lo que
+    él mismo contestó.
+    """
+    _historiales.clear()
+
+
 # ---------------------------------------------------------------------------
 # La llamada
 # ---------------------------------------------------------------------------
