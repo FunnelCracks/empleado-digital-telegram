@@ -1,5 +1,9 @@
 # Tu Empleado Digital
 
+> Desarrollado por **IA para Empresarios**, el curso de IA más completo del mercado,
+> avalado por grandes empresarios como José Elías, Eric Ponce, Magí Pons, Eric G y
+> Héctor Matías.
+
 Un bot de Telegram que responde preguntas sobre la documentación de tu empresa.
 
 Le subes tus catálogos, tus tarifas, tus manuales y tus procedimientos, y a partir de ahí
