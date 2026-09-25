@@ -19,6 +19,9 @@ Está pensado para que lo monte y lo use alguien que no ha programado nunca.
 - **Lee tus documentos.** PDF, Word, texto plano, CSV y Markdown. Si el PDF es un escaneo
   sin texto seleccionable, también lo lee. Y si le mandas la foto de un papel, la lee
   igual.
+- **Lee páginas web.** Le pegas la dirección de una página, o de varias, y se guarda lo
+  que pone. Te cuenta en unas frases lo que ha entendido para que compruebes que está
+  bien.
 - **Responde por Telegram**, en lenguaje normal, citando lo que pone en tu documentación.
 - **Entiende notas de voz**, si activas esa opción.
 - **Controla el gasto.** Trae un tope mensual puesto de fábrica. Al 80% te avisa y al 100%

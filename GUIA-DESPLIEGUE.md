@@ -193,11 +193,17 @@ a un fichero CSV. Descárgalo y mándaselo al bot como cualquier otro documento.
 tus productos con sus precios y referencias, mucho mejor que si leyera la tienda página a
 página.
 
-**¿Quieres que sepa lo que pone en tu web? Mándale la página en PDF.** Abre la página en
-el navegador del ordenador, pulsa **Imprimir** (Control + P, o Cmd + P en Mac) y, donde
-se elige la impresora, escoge **Guardar como PDF**. Ese PDF se lo mandas al bot. Hazlo
-con las páginas que tengan información útil para tu equipo: servicios, precios,
-preguntas frecuentes, envíos, garantías...
+**¿Quieres que sepa lo que pone en tu web? Pégale la dirección.** Copia la dirección de
+la página desde el navegador y pégasela al bot en el chat, sin escribir nada más. Si son
+varias, una por línea. El bot la lee, te cuenta en unas frases lo que ha entendido para
+que compruebes que está bien, y la guarda como un documento más. Elige las páginas que
+tengan información útil para tu equipo: servicios, precios, preguntas frecuentes,
+envíos, garantías...
+
+Algunas webs no se dejan leer: las privadas, las que se protegen contra robots y
+algunas muy modernas. Si te pasa, el bot te lo dirá. Entonces abre la página en el
+navegador del ordenador, pulsa **Imprimir** (Control + P, o Cmd + P en Mac) y, donde se
+elige la impresora, escoge **Guardar como PDF**. Ese PDF se lo mandas al bot y listo.
 
 ---
 

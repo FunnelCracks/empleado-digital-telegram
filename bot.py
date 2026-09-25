@@ -198,6 +198,8 @@ async def mensaje_texto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # comando, no como pregunta para Claude.
         if await comandos.pulsacion_de_boton(update, context):
             return
+        if await comandos.recibir_webs_si_toca(update, context, texto):
+            return
         await comandos.atender_pregunta(update, context, texto)
         return
 

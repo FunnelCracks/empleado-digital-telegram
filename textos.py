@@ -6,7 +6,12 @@ los errores se explican diciendo qué hacer, no qué ha fallado. Nunca rayas
 largas como signo de puntuación.
 
 El formato es HTML de Telegram: <b>negrita</b>, <code>monoespaciado</code>.
+Todo lo que llega de fuera (una dirección, el título de una web, un resumen)
+se escapa antes de meterlo, o un < suelto haría que Telegram rechazara el
+mensaje entero.
 """
+
+from html import escape
 
 # ---------------------------------------------------------------------------
 # Aviso legal, se reutiliza en varios sitios
@@ -144,7 +149,7 @@ def ayuda_owner(documentos: int, nombres: list[str]) -> str:
         "<b>Esto es lo que puedo hacer</b>\n\n"
         + estado
         + "<b>Tus documentos</b>\n"
-        "/doc  subir documentación\n"
+        "/doc  subir documentación o páginas web\n"
         "/docs  ver lo que tengo cargado\n"
         "/borrar  quitar un documento\n\n"
         "<b>Tu gente</b>\n"
@@ -198,7 +203,9 @@ PIDE_DOCUMENTOS = (
     "📄 <b>Mándame lo que quieras que aprenda</b>\n\n"
     "Acepto PDF, Word, texto, CSV y fotos. Puedes mandarlos uno detrás de otro, "
     "no hace falta que avises entre uno y otro.\n\n"
-    "Si el PDF está escaneado también lo leo, solo que tardo un poco más."
+    "Si el PDF está escaneado también lo leo, solo que tardo un poco más.\n\n"
+    "🌐 <b>También leo páginas web.</b> Pégame la dirección, o varias, una por "
+    "línea, y me guardo lo que ponga en cada una."
 )
 
 
@@ -312,6 +319,103 @@ SOLO_OWNER_SUBE = (
     "🔒 Solo el administrador puede subir documentación.\n\n"
     "Tú puedes preguntarme lo que quieras sobre la que ya hay cargada."
 )
+
+
+# ---------------------------------------------------------------------------
+# Páginas web
+# ---------------------------------------------------------------------------
+
+COMO_GUARDAR_EN_PDF = (
+    "Hay un camino que funciona siempre: abre la página en el navegador del "
+    "ordenador, pulsa Imprimir (Control + P, o Cmd + P en Mac), elige "
+    "<b>Guardar como PDF</b> y mándame ese PDF."
+)
+
+
+def leyendo_webs(cuantas: int) -> str:
+    if cuantas == 1:
+        return "🌐 Estoy leyendo la página, dame un momento."
+    return f"🌐 Estoy leyendo las {cuantas} páginas. Te voy contando una a una."
+
+
+def demasiadas_direcciones(maximo: int) -> str:
+    return (
+        f"🌐 Son muchas direcciones de golpe. Mándame como mucho {maximo} por "
+        "mensaje y, si tienes más, las siguientes en otro mensaje."
+    )
+
+
+SOLO_OWNER_WEBS = (
+    "🔒 Solo el administrador puede añadir páginas web a la documentación.\n\n"
+    "Si quieres preguntarme algo sobre una web, escríbemelo con tus palabras."
+)
+
+
+BOTON_QUITAR_WEB = "🗑️ Quitar esta página"
+
+
+def web_guardada(
+    nombre: str,
+    direccion: str,
+    titulo: str,
+    resumen: str,
+    tokens: int,
+    total_documentos: int,
+    coste_caliente: str,
+    sobrescrito: bool,
+) -> str:
+    accion = "He actualizado" if sobrescrito else "He guardado"
+    cabecera = f"🌐 <b>{accion} {escape(titulo or nombre)}</b>\n{escape(direccion)}"
+    plural = "documento" if total_documentos == 1 else "documentos"
+    return (
+        f"{cabecera}\n\n"
+        f"<b>Lo que he entendido:</b>\n{escape(resumen)}\n\n"
+        f"Ocupa {tokens:,} tokens. ".replace(",", ".")
+        + f"Ya tengo <b>{total_documentos} {plural}</b> y cada pregunta te costará "
+        f"<b>{coste_caliente}</b> más o menos.\n\n"
+        "Si esto no es lo que querías, quítala con el botón y mándamela en PDF."
+    )
+
+
+_POR_QUE_NO_SE_LEE = {
+    "privada": "La página pide usuario y contraseña, y ahí no puedo entrar.",
+    "bloqueada": (
+        "La web no deja que la lean programas como yo. Es una protección "
+        "normal contra robots y no la voy a saltar."
+    ),
+    "no_existe": (
+        "Esa dirección no existe o está mal escrita. Revísala, que es fácil "
+        "que falte o sobre una letra."
+    ),
+    "no_responde": "La web no me contesta, o tarda demasiado en hacerlo.",
+    "sin_texto": (
+        "La página casi no tiene texto que pueda leer. Suele pasar con las "
+        "webs que se montan en el navegador al abrirlas."
+    ),
+    "formato": "En esa dirección no hay una página web, sino otro tipo de fichero.",
+    "demasiado_grande": "La página es enorme y no la puedo bajar entera.",
+    "interna": (
+        "Esa dirección no es de una web pública de internet, así que no la leo."
+    ),
+}
+
+
+def web_no_leida(direccion: str, motivo: str) -> str:
+    explicacion = _POR_QUE_NO_SE_LEE.get(motivo, _POR_QUE_NO_SE_LEE["no_responde"])
+    texto = f"😕 <b>No he podido leer</b> {escape(direccion)}\n\n{explicacion}"
+    if motivo == "interna":
+        return texto
+    return f"{texto}\n\n{COMO_GUARDAR_EN_PDF}"
+
+
+def web_sin_contenido(direccion: str, explicacion: str) -> str:
+    detalle = f"\n\n{escape(explicacion)}" if explicacion else ""
+    return (
+        f"😕 <b>No he guardado</b> {escape(direccion)}\n\n"
+        "Lo que me ha llegado no es el contenido de la página, sino otra cosa "
+        f"(un aviso, un error o una comprobación de seguridad).{detalle}\n\n"
+        f"{COMO_GUARDAR_EN_PDF}"
+    )
 
 
 VOZ_SIN_CONFIGURAR = (

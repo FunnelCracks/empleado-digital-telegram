@@ -5,7 +5,7 @@ Todo lo que el owner hace con su documentación: subirla, verla y quitarla.
 
 import logging
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, Update
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 
@@ -21,6 +21,7 @@ import extraccion
 import limites
 import menu
 import textos
+import web
 from comun import documentos_cargados, escribiendo, responder, responder_largo
 
 log = logging.getLogger("empleado.comandos")
@@ -162,7 +163,12 @@ async def _guardar_y_responder(
         avisos=documento.avisos,
     ))
 
-    # Aviso de coste una sola vez, cuando se cruza el umbral.
+    await _avisar_si_documentacion_grande(update)
+
+
+async def _avisar_si_documentacion_grande(update: Update) -> None:
+    """Aviso de coste una sola vez, cuando se cruza el umbral."""
+    total = almacen.total_tokens()
     config = almacen.leer_config()
     if total > ajustes.AVISO_TOKENS_DOCUMENTOS and config.get("avisado_tokens") != "si":
         await almacen.actualizar_config(avisado_tokens="si")
@@ -268,6 +274,99 @@ async def recibir_voz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     # corregir si la transcripción no era lo que quería decir.
     await responder(update, textos.voz_entendida(documento.texto))
     await atender_pregunta(update, context, documento.texto)
+
+
+# ---------------------------------------------------------------------------
+# Páginas web
+# ---------------------------------------------------------------------------
+
+
+async def recibir_webs_si_toca(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, texto: str
+) -> bool:
+    """Si el mensaje solo trae direcciones, se leen. Devuelve si lo ha atendido.
+
+    No hay comando ni modo: pegar direcciones ya es pedir que se lean. Un
+    mensaje que además trae otras palabras es una pregunta y sigue su camino.
+    """
+    direcciones = web.direcciones_del_mensaje(texto)
+    if not direcciones:
+        return False
+
+    if not acceso.es_owner(update.effective_chat.id):
+        await responder(update, textos.SOLO_OWNER_WEBS)
+        return True
+
+    if len(direcciones) > web.MAX_DIRECCIONES:
+        await responder(update, textos.demasiadas_direcciones(web.MAX_DIRECCIONES))
+        return True
+
+    await responder(update, textos.leyendo_webs(len(direcciones)))
+    guardada_alguna = False
+    for direccion in direcciones:
+        async with escribiendo(update):
+            try:
+                guardada_alguna |= await _leer_y_guardar_web(update, direccion)
+            except web.WebNoLeida as error:
+                log.info("Web no leida (%s): %s", error.motivo, direccion)
+                await responder(update, textos.web_no_leida(direccion, error.motivo))
+            except claude_api.ProblemaConClaude as error:
+                log.warning("Web fallida por la API: %s", error.motivo)
+                await responder(update, textos.problema_al_subir(error.motivo))
+                # Si falla la clave o el saldo, fallarán todas. Mejor parar.
+                break
+            except Exception:
+                log.exception("Fallo leyendo %s", direccion)
+                await responder(update, textos.web_no_leida(direccion, "no_responde"))
+
+    if guardada_alguna:
+        await _avisar_si_documentacion_grande(update)
+        await copia_automatica_si_toca(context)
+    return True
+
+
+async def _leer_y_guardar_web(update: Update, direccion: str) -> bool:
+    """Lee la página, la resume y la guarda. Devuelve si la ha guardado."""
+    pagina = await web.leer_pagina(direccion)
+    valida, resumen, uso = await claude_api.resumir_web(pagina.documento.texto)
+    await costes.registrar_uso(uso, "resumen:web")
+    if pagina.documento.uso is not None:
+        await costes.registrar_uso(pagina.documento.uso, "extraccion:web")
+
+    if not valida:
+        await responder(update, textos.web_sin_contenido(pagina.direccion, resumen))
+        return False
+
+    nombre = web.nombre_para(pagina.direccion)
+    tokens = await claude_api.contar_tokens(pagina.documento.texto)
+    sobrescrito = await almacen.guardar_documento(
+        nombre, pagina.documento.texto, tokens, "web"
+    )
+    consulta.olvidar_todo()
+    await almacen.registrar_evento(
+        "web_guardada", update.effective_chat.id, f"{nombre} ({tokens} tokens) {pagina.direccion}"
+    )
+
+    # El botón reutiliza el de /borrar, que no guarda nada entre mensajes.
+    boton = InlineKeyboardMarkup([[InlineKeyboardButton(
+        textos.BOTON_QUITAR_WEB, callback_data=f"{PREFIJO_BORRAR}{nombre}"
+    )]])
+    await update.effective_message.reply_text(
+        textos.web_guardada(
+            nombre=nombre,
+            direccion=pagina.direccion,
+            titulo=pagina.titulo,
+            resumen=resumen,
+            tokens=tokens,
+            total_documentos=len(documentos_cargados()),
+            coste_caliente=_coste_por_pregunta(),
+            sobrescrito=sobrescrito,
+        ),
+        parse_mode="HTML",
+        reply_markup=boton,
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
+    return True
 
 
 # ---------------------------------------------------------------------------
