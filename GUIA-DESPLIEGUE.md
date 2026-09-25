@@ -54,7 +54,7 @@ Los bots de Telegram se crean hablando con otro bot, uno oficial que se llama
    larga con esta pinta:
 
    ```
-   7412345678:AAHd8kLmN0pQrStUvWxYz1234567890abcd
+   7412345678:AAHd8kLm...
    ```
 
    Números, dos puntos y un montón de letras. **Cópialo entero y pégalo en tu nota.**
