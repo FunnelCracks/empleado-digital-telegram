@@ -22,7 +22,13 @@ import limites
 import menu
 import textos
 import web
-from comun import documentos_cargados, escribiendo, responder, responder_largo
+from comun import (
+    documentos_cargados,
+    escribiendo,
+    responder,
+    responder_largo,
+    responder_no_permitido,
+)
 
 log = logging.getLogger("empleado.comandos")
 
@@ -47,12 +53,19 @@ async def comando_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     se quedara colgado. El comando es solo una explicación.
     """
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER_SUBE)
+        await responder_no_permitido(update, textos.SOLO_OWNER_SUBE)
         return
     await responder(update, textos.PIDE_DOCUMENTOS)
 
 
 async def comando_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # A un cliente no se le enseña la lista: los nombres de los ficheros son
+    # cosa interna, y lo que le interesa es qué puede preguntar.
+    if acceso.es_cliente(update.effective_chat.id):
+        await responder(update, textos.ayuda_cliente(
+            almacen.leer_config().get("nombre_empresa", "")
+        ))
+        return
     if not acceso.esta_autorizado(update.effective_chat.id):
         await responder(update, textos.NO_AUTORIZADO)
         return
@@ -73,7 +86,7 @@ async def comando_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def comando_borrar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER)
+        await responder_no_permitido(update, textos.SOLO_OWNER)
         return
 
     nombres = documentos_cargados()
@@ -161,9 +174,14 @@ async def _guardar_y_responder(
         coste_caliente=_coste_por_pregunta(),
         sobrescrito=sobrescrito,
         avisos=documento.avisos,
-    ))
+    ) + _recordatorio_publico())
 
     await _avisar_si_documentacion_grande(update)
+
+
+def _recordatorio_publico() -> str:
+    """En un bot para clientes, cada subida recuerda que es para todos."""
+    return textos.RECORDATORIO_PUBLICO if acceso.es_modo_clientes() else ""
 
 
 async def _avisar_si_documentacion_grande(update: Update) -> None:
@@ -178,7 +196,9 @@ async def _avisar_si_documentacion_grande(update: Update) -> None:
 async def recibir_documento(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     mensaje = update.effective_message
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER_SUBE)
+        await responder_no_permitido(
+            update, textos.SOLO_OWNER_SUBE, textos.SOLO_TEXTO_CLIENTE
+        )
         return
 
     fichero = mensaje.document
@@ -214,7 +234,9 @@ async def recibir_documento(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def recibir_foto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER_SUBE)
+        await responder_no_permitido(
+            update, textos.SOLO_OWNER_SUBE, textos.SOLO_TEXTO_CLIENTE
+        )
         return
 
     # Telegram manda varias resoluciones. La última es la más grande.
@@ -244,7 +266,7 @@ async def recibir_voz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     Se transcribe y se trata igual que si la hubiera escrito. En esta fase
     todavía no hay consulta, así que se le enseña lo que se ha entendido.
     """
-    if not acceso.esta_autorizado(update.effective_chat.id):
+    if not acceso.puede_preguntar(update.effective_chat.id):
         await responder(update, textos.NO_AUTORIZADO)
         return
 
@@ -294,6 +316,10 @@ async def recibir_webs_si_toca(
         return False
 
     if not acceso.es_owner(update.effective_chat.id):
+        # Un cliente que pega una dirección está preguntando algo. Se le
+        # atiende como a cualquier pregunta.
+        if acceso.es_cliente(update.effective_chat.id):
+            return False
         await responder(update, textos.SOLO_OWNER_WEBS)
         return True
 
@@ -361,7 +387,7 @@ async def _leer_y_guardar_web(update: Update, direccion: str) -> bool:
             total_documentos=len(documentos_cargados()),
             coste_caliente=_coste_por_pregunta(),
             sobrescrito=sobrescrito,
-        ),
+        ) + _recordatorio_publico(),
         parse_mode="HTML",
         reply_markup=boton,
         link_preview_options=LinkPreviewOptions(is_disabled=True),
@@ -380,32 +406,55 @@ async def atender_pregunta(
     """Consulta la documentación y responde, venga de texto o de una voz."""
     chat_id = update.effective_chat.id
     es_owner = acceso.es_owner(chat_id)
+    de_cliente = acceso.es_cliente(chat_id)
 
     # El tope por hora protege el presupuesto de un usuario que se emociona.
-    # El owner queda fuera: es su dinero y su bot.
-    if not es_owner and limites.ha_pasado_del_limite(chat_id):
+    # El owner queda fuera: es su dinero y su bot. A los clientes, que no se
+    # sabe quiénes son, se les pone uno más bajo.
+    if not es_owner and limites.ha_pasado_del_limite(chat_id, de_cliente):
         await responder(update, textos.demasiadas_preguntas(
-            limites.minutos_hasta_poder_preguntar(chat_id)
+            limites.minutos_hasta_poder_preguntar(chat_id), de_cliente
         ))
         return
+
+    # A los clientes se les para antes que al jefe, para que a él siempre le
+    # quede bot. Se mira antes de gastar, no después.
+    if de_cliente:
+        motivo = costes.clientes_sin_presupuesto()
+        if motivo:
+            await responder(update, textos.clientes_sin_presupuesto(
+                motivo, almacen.leer_config().get("contacto", "")
+            ))
+            await _avisar_al_owner_si_toca(context)
+            return
 
     respuesta = ""
     async with escribiendo(update):
         try:
-            respuesta, _uso = await consulta.preguntar(chat_id, pregunta)
+            respuesta, _uso = await consulta.preguntar(chat_id, pregunta, de_cliente)
         except consulta.SinDocumentacion:
-            await responder(update, (
-                textos.SIN_DOCUMENTACION_OWNER
-                if es_owner
-                else textos.SIN_DOCUMENTACION_EMPLEADO
-            ))
+            if es_owner:
+                aviso = textos.SIN_DOCUMENTACION_OWNER
+            elif de_cliente:
+                aviso = textos.sin_documentacion_cliente(
+                    almacen.leer_config().get("contacto", "")
+                )
+            else:
+                aviso = textos.SIN_DOCUMENTACION_EMPLEADO
+            await responder(update, aviso)
             return
         except consulta.LimiteAlcanzado:
-            await _contar_que_se_acabo(update, context, es_owner)
+            await _contar_que_se_acabo(update, context, es_owner, de_cliente)
             return
         except consulta.ProblemaConClaude as error:
             log.warning("Consulta fallida: %s", error.motivo)
-            await responder(update, textos.problema_al_responder(error.motivo))
+            if de_cliente:
+                await responder(update, textos.problema_al_responder_cliente(
+                    error.motivo, almacen.leer_config().get("contacto", "")
+                ))
+                await _avisar_problema_al_owner(context, error.motivo)
+            else:
+                await responder(update, textos.problema_al_responder(error.motivo))
             return
         except Exception:
             log.exception("Fallo inesperado atendiendo una pregunta")
@@ -423,10 +472,20 @@ async def atender_pregunta(
 
 
 async def _contar_que_se_acabo(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, es_owner: bool
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    es_owner: bool,
+    de_cliente: bool = False,
 ) -> None:
-    """Al owner se le explica qué hacer. Al empleado, a quién avisar."""
+    """Al owner se le explica qué hacer. Al empleado, a quién avisar. Al
+    cliente, dónde le pueden atender."""
     gastado = costes.en_euros(costes.gasto_del_mes())
+    if de_cliente:
+        await responder(update, textos.clientes_sin_presupuesto(
+            "mes", almacen.leer_config().get("contacto", "")
+        ))
+        await _avisar_al_owner_si_toca(context)
+        return
     if es_owner:
         await responder(update, textos.tope_alcanzado_owner(
             gastado, costes.limite_mensual()
@@ -452,6 +511,22 @@ async def _avisar_al_owner_si_toca(context: ContextTypes.DEFAULT_TYPE) -> None:
         ))
         return
 
+    if acceso.es_modo_clientes():
+        if costes.hay_que_avisar_clientes_mes():
+            # El del 80% ya no aporta nada si llega a la vez que este.
+            await costes.marcar_avisado("avisado_clientes_mes")
+            await costes.marcar_avisado("avisado_80")
+            await _mandar_al_owner(context, destino, textos.aviso_clientes_mes(
+                costes.en_euros(costes.gasto_del_mes()),
+                costes.limite_mensual(),
+            ))
+            return
+        if costes.hay_que_avisar_clientes_dia():
+            await costes.marcar_avisado_clientes_dia()
+            await _mandar_al_owner(context, destino, textos.aviso_clientes_dia(
+                costes.en_euros(costes.tope_diario_clientes())
+            ))
+
     if costes.hay_que_avisar_del_80():
         await costes.marcar_avisado("avisado_80")
         await _mandar_al_owner(context, destino, textos.aviso_80_por_ciento(
@@ -459,6 +534,25 @@ async def _avisar_al_owner_si_toca(context: ContextTypes.DEFAULT_TYPE) -> None:
             costes.limite_mensual(),
             costes.en_euros(costes.proyeccion_fin_de_mes()),
         ))
+
+
+async def _avisar_problema_al_owner(context: ContextTypes.DEFAULT_TYPE, motivo: str) -> None:
+    """Si a los clientes no se les puede responder por la clave o el saldo,
+    el jefe tiene que enterarse, porque él no lo va a ver. Una vez al día."""
+    if motivo not in ("credito", "clave"):
+        return
+    destino = acceso.owner_id()
+    if destino is None:
+        return
+    marca = f"{costes.dia_actual()}:{motivo}"
+    datos = costes.datos_del_mes()
+    if datos.get("avisado_problema") == marca:
+        return
+    datos["avisado_problema"] = marca
+    await almacen.guardar_json(almacen.FICHERO_USO, datos)
+    await _mandar_al_owner(
+        context, destino, textos.AVISO_PROBLEMA_CLIENTES + textos.problema_al_responder(motivo)
+    )
 
 
 async def _mandar_al_owner(
@@ -481,7 +575,7 @@ async def _mandar_al_owner(
 
 async def comando_costes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER)
+        await responder_no_permitido(update, textos.SOLO_OWNER)
         return
 
     datos = costes.datos_del_mes()
@@ -495,12 +589,17 @@ async def comando_costes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         proyeccion=costes.en_euros(costes.proyeccion_fin_de_mes()),
         documentos=len(documentos_cargados()),
         tokens=costes.con_miles(almacen.total_tokens()),
+        clientes=textos.linea_gasto_clientes(
+            costes.en_euros(costes.gasto_clientes_hoy()),
+            costes.en_euros(costes.gasto_clientes_mes()),
+            costes.en_euros(costes.tope_diario_clientes()),
+        ) if acceso.es_modo_clientes() else "",
     ))
 
 
 async def comando_limite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER)
+        await responder_no_permitido(update, textos.SOLO_OWNER)
         return
 
     if not context.args:
@@ -517,11 +616,15 @@ async def comando_limite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     await costes.cambiar_limite(nuevo)
     # Si sube el tope por encima de lo gastado, los avisos vuelven a servir.
+    datos = costes.datos_del_mes()
     if costes.porcentaje_gastado() < costes.UMBRAL_AVISO:
-        datos = costes.datos_del_mes()
         datos["avisado_80"] = False
         datos["avisado_100"] = False
-        await almacen.guardar_json(almacen.FICHERO_USO, datos)
+    if costes.porcentaje_gastado() < costes.UMBRAL_CLIENTES_MES:
+        datos["avisado_clientes_mes"] = False
+    if costes.gasto_clientes_hoy() < costes.tope_diario_clientes():
+        datos["avisado_clientes_dia"] = ""
+    await almacen.guardar_json(almacen.FICHERO_USO, datos)
 
     await almacen.registrar_evento("limite_cambiado", update.effective_chat.id, str(nuevo))
     await responder(update, textos.limite_cambiado(
@@ -536,12 +639,12 @@ async def comando_limite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def comando_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
-    if not acceso.esta_autorizado(chat_id):
+    if not acceso.puede_preguntar(chat_id):
         await responder(update, textos.NO_AUTORIZADO)
         return
     await update.effective_message.reply_text(
         textos.MENU_AQUI,
-        reply_markup=menu.teclado_para(acceso.es_owner(chat_id)),
+        reply_markup=menu.teclado_para(acceso.es_owner(chat_id), acceso.es_modo_clientes()),
     )
 
 
@@ -555,7 +658,13 @@ CANCELAR_REVOCAR = "revocar:__cancelar__"
 
 async def comando_usuarios(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER)
+        await responder_no_permitido(update, textos.SOLO_OWNER)
+        return
+
+    if acceso.es_modo_clientes():
+        await responder(update, textos.resumen_de_clientes(
+            costes.preguntas_clientes_hoy(), costes.preguntas_clientes_mes()
+        ))
         return
 
     gente = acceso.autorizados()
@@ -621,7 +730,7 @@ async def pulsacion_revocar(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def comando_logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER)
+        await responder_no_permitido(update, textos.SOLO_OWNER)
         return
     lineas = [
         comun.formatear_evento(linea)
@@ -638,7 +747,7 @@ async def comando_logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def comando_backup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not acceso.es_owner(update.effective_chat.id):
-        await responder(update, textos.SOLO_OWNER)
+        await responder_no_permitido(update, textos.SOLO_OWNER)
         return
     if not documentos_cargados():
         await responder(update, textos.COPIA_SIN_NADA)

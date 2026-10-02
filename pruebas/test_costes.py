@@ -230,7 +230,10 @@ class MenuDeBotones(unittest.TestCase):
         """Al revés: ninguna equivalencia huérfana que nadie pueda pulsar."""
         en_teclados = {
             boton.text
-            for teclado in (menu.teclado_owner(), menu.teclado_empleado())
+            for teclado in (
+                menu.teclado_owner(), menu.teclado_empleado(),
+                menu.teclado_owner(para_clientes=True), menu.teclado_cliente(),
+            )
             for fila in teclado.keyboard
             for boton in fila
         }

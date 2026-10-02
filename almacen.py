@@ -159,6 +159,23 @@ async def actualizar_config(**cambios: str) -> dict[str, str]:
         return config
 
 
+async def actualizar_config_si(condicion, **cambios: str) -> bool:
+    """Como actualizar_config, pero solo si `condicion(config)` se cumple.
+
+    La comprobación se hace con el lock cogido. Si se hiciera antes, dos
+    pulsaciones casi a la vez podrían pasarla las dos y escribir una detrás
+    de otra, que es justo lo que no puede pasar con algo que se elige una
+    sola vez.
+    """
+    async with _lock(FICHERO_CONFIG):
+        config = leer_config()
+        if not condicion(config):
+            return False
+        config.update({clave: str(valor) for clave, valor in cambios.items()})
+        escribir_atomico(FICHERO_CONFIG, _serializar_config(config))
+        return True
+
+
 # ---------------------------------------------------------------------------
 # access.log
 # ---------------------------------------------------------------------------

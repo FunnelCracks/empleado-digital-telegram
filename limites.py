@@ -42,8 +42,13 @@ def preguntas_en_la_ultima_hora(chat_id: int) -> int:
     return len(_recientes(marcas, ahora))
 
 
-def quedan(chat_id: int) -> int:
-    return max(0, ajustes.LIMITE_PREGUNTAS_HORA - preguntas_en_la_ultima_hora(chat_id))
+def tope_por_hora(de_cliente: bool = False) -> int:
+    """En un bot para clientes escribe gente que no conoces, así que menos."""
+    return ajustes.LIMITE_PREGUNTAS_HORA_CLIENTES if de_cliente else ajustes.LIMITE_PREGUNTAS_HORA
+
+
+def quedan(chat_id: int, de_cliente: bool = False) -> int:
+    return max(0, tope_por_hora(de_cliente) - preguntas_en_la_ultima_hora(chat_id))
 
 
 def minutos_hasta_poder_preguntar(chat_id: int) -> int:
@@ -74,8 +79,8 @@ async def registrar_pregunta(chat_id: int) -> None:
     await almacen.guardar_json(almacen.FICHERO_BLOQUEOS, datos)
 
 
-def ha_pasado_del_limite(chat_id: int) -> bool:
-    return preguntas_en_la_ultima_hora(chat_id) >= ajustes.LIMITE_PREGUNTAS_HORA
+def ha_pasado_del_limite(chat_id: int, de_cliente: bool = False) -> bool:
+    return preguntas_en_la_ultima_hora(chat_id) >= tope_por_hora(de_cliente)
 
 
 # ---------------------------------------------------------------------------

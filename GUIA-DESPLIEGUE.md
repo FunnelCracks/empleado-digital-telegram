@@ -162,13 +162,33 @@ dejar ningún ordenador encendido.
    termina en `bot`). BotFather también te dejó un enlace directo, `t.me/...`, en el
    mensaje del token.
 2. Pulsa **Iniciar**.
-3. El bot te responde que ya eres el administrador, te enseña un aviso sobre protección
-   de datos y te da el **código de acceso** para tu equipo: seis letras y números.
+3. El bot te responde que ya eres el administrador y te hace **una pregunta importante:
+   para quién va a ser**.
 
-   > 📸 **[CAPTURA 11]** El mensaje de bienvenida del administrador con el código de acceso.
+   > 📸 **[CAPTURA 11]** Los dos botones: "Para mi equipo" y "Para mis clientes".
 
-   **Guarda ese código.** Es lo que vas a repartir a tu gente. Si lo pierdes no pasa
-   nada, con `/codigo` sacas uno nuevo.
+   - 🏢 **Para tu equipo.** Solo entra quien tenga un código de acceso que le darás tú.
+     Le puedes dar documentación interna: procedimientos, manuales, tarifas de coste...
+   - 🌍 **Para tus clientes.** Cualquiera con el enlace del bot puede preguntarle, sin
+     código. Es un asistente que atiende a tus clientes a cualquier hora. Dale solo lo
+     que pondrías en tu web: catálogo, precios de venta, horarios, envíos, preguntas
+     frecuentes. **Todo lo que le des lo podrá leer cualquiera.**
+
+   > ⚠️ **Esto no se puede cambiar después.** Si dudas, elige equipo. ¿Lo quieres para
+   > las dos cosas? Monta dos bots, uno para cada una: está explicado más abajo, en
+   > [Para tu equipo y para tus clientes](#para-tu-equipo-y-para-tus-clientes).
+
+   El bot te pide que confirmes. Después:
+
+   - **Si has elegido equipo**, te enseña un aviso sobre protección de datos y te da el
+     **código de acceso**: seis letras y números. **Guárdalo.** Es lo que vas a repartir
+     a tu gente. Si lo pierdes no pasa nada, con `/codigo` sacas uno nuevo.
+   - **Si has elegido clientes**, te enseña el aviso de qué conviene subir, te da el
+     **enlace para tus clientes** y te pregunta el nombre de tu empresa y a dónde mandar a
+     alguien cuando pregunte algo que el bot no sabe. Contesta a cada pregunta
+     escribiendo la respuesta, sin más.
+
+   > 📸 **[CAPTURA 11b]** El código de acceso (equipo) o el enlace y la pregunta del nombre (clientes).
 
 4. **Mándale un documento.** Un catálogo, una tarifa, un manual. Se lo mandas como
    mandarías cualquier fichero por Telegram, con el clip. Acepta PDF, Word, texto, CSV y
@@ -177,7 +197,7 @@ dejar ningún ordenador encendido.
    > 📸 **[CAPTURA 12]** El bot confirmando que ha guardado el documento.
 
 5. **Pregúntale algo** que esté en ese documento, escrito normal, como se lo preguntarías
-   a un compañero.
+   a un compañero. Si es un bot para clientes, pregúntale como lo haría un cliente.
 
    > 📸 **[CAPTURA 13]** Una pregunta y la respuesta del bot.
 
@@ -207,7 +227,7 @@ elige la impresora, escoge **Guardar como PDF**. Ese PDF se lo mandas al bot y l
 
 ---
 
-## Dale acceso a tu equipo
+## Si es para tu equipo: dale acceso
 
 A cada persona que quieras que lo use, mándale dos cosas:
 
@@ -226,6 +246,46 @@ el código nuevo.
 
 ---
 
+## Si es para tus clientes: compártelo
+
+Tus clientes solo necesitan el **enlace del bot**. Si no lo tienes a mano, escribe
+`/enlace` y te lo da. Ponlo donde te encuentren:
+
+- En tu web, junto al teléfono o en la página de contacto: "Pregúntale a nuestro
+  asistente en Telegram".
+- En la firma de tus correos.
+- En tus redes sociales.
+- En un código QR en la tienda, en el mostrador o en tus folletos. Hay muchas webs
+  gratuitas que convierten un enlace en un código QR.
+
+Cuando lo abran, el bot les saluda con el nombre de tu empresa y les contesta con lo que
+le hayas dado. Si algo no lo sabe, se lo dice y les da tu contacto. Y si le preguntan
+cosas que no tienen que ver con tu empresa, les recuerda con educación para qué está.
+
+> 📸 **[CAPTURA 14b]** Lo que ve un cliente: el saludo y una pregunta respondida.
+
+**El nombre y el contacto** los puedes cambiar cuando quieras con `/empresa` y
+`/contacto`. El bot te pregunta y tú contestas.
+
+**Lo que no se guarda.** El bot no apunta quién le escribe. Con `/usuarios` ves cuántas
+preguntas te hacen al día y al mes, pero no quién.
+
+### Para tu equipo y para tus clientes
+
+Un mismo bot no puede ser las dos cosas, y es a propósito: así nunca se te puede escapar
+un documento interno a la vista de un cliente. Si quieres los dos, **monta dos bots**:
+
+1. Crea otro bot en BotFather, con otro nombre (paso 1).
+2. Vuelve a pulsar el botón de la plantilla de Railway y despliégalo con el token del bot
+   nuevo. **La clave de Claude puede ser la misma.** Los dos bots caben en el mismo plan
+   de Railway.
+3. Haz el paso 4 con el bot nuevo y elige el otro modo.
+
+Cada bot lleva su propio tope de gasto, pero los dos se descuentan del mismo saldo de
+Claude.
+
+---
+
 ## Lo que cuesta y cómo lo controlas
 
 Tienes dos facturas, las dos independientes y las dos en tus manos.
@@ -240,6 +300,19 @@ te avisa por correo antes de que termine la prueba.
 **Claude, las respuestas.** Depende de cuánto pregunte tu equipo y de cuánta
 documentación tengas cargada. Cuando subes un documento, el bot ya te dice más o menos
 lo que te va a costar cada pregunta.
+
+**Si es un bot para tus clientes**, le puede escribir cualquiera, así que lleva tres
+frenos más, puestos de fábrica:
+
+- Cada persona puede hacer como mucho **10 preguntas por hora**.
+- Entre todos los clientes no pueden gastar en un día más de **la décima parte de tu
+  tope del mes** (2 dólares con el tope de 20). Si se llega, el bot les dice que vuelvan
+  mañana y a ti te avisa.
+- Cuando entre todos se ha gastado el **90% del tope del mes**, el bot deja de atender a
+  los clientes y te guarda el resto a ti, para que tú siempre puedas seguir usándolo. Te
+  avisa, y si quieres que siga atendiéndoles, subes el tope con `/limite`.
+
+En los dos casos, a quien no puede atender le da tu contacto.
 
 Para no llevarte sustos:
 

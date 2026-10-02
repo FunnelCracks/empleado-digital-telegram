@@ -7,7 +7,7 @@
 Un bot de Telegram que responde preguntas sobre la documentación de tu empresa.
 
 Le subes tus catálogos, tus tarifas, tus manuales y tus procedimientos, y a partir de ahí
-tu equipo le pregunta por Telegram como le preguntaría a un compañero. Responde solo con
+le pregunta por Telegram tu equipo o, si lo prefieres, tus clientes. Responde solo con
 lo que hay en esos documentos, y cuando algo no lo sabe, lo dice.
 
 Está pensado para que lo monte y lo use alguien que no ha programado nunca.
@@ -25,8 +25,13 @@ Está pensado para que lo monte y lo use alguien que no ha programado nunca.
 - **Responde por Telegram**, en lenguaje normal, citando lo que pone en tu documentación.
 - **Entiende notas de voz**, si activas esa opción.
 - **Controla el gasto.** Trae un tope mensual puesto de fábrica. Al 80% te avisa y al 100%
-  deja de responder, para que nadie se lleve un susto en la factura.
-- **Da acceso a tu equipo con un código**, y tú decides a quién se lo quitas y cuándo.
+  deja de responder, para que nadie se lleve un susto en la factura. En un bot para
+  clientes, además, los clientes tienen un tope por día y se les para al 90% del mes,
+  para que a ti siempre te quede bot.
+- **Para tu equipo o para tus clientes.** Al montarlo eliges. Para tu equipo, solo entra
+  quien tenga el código de acceso, y tú decides a quién se lo quitas y cuándo. Para tus
+  clientes, le pregunta cualquiera con el enlace, sin código, con topes de gasto propios
+  y sin guardar quién escribe.
 - **Se hace copias de seguridad solo** y te las manda por Telegram cuando cambia la
   documentación.
 
@@ -34,11 +39,14 @@ Está pensado para que lo monte y lo use alguien que no ha programado nunca.
 
 | Comando | Qué hace |
 |---|---|
-| `/start` | Empieza. El primero que lo escribe se queda como administrador |
+| `/start` | Empieza. El primero que lo escribe se queda como administrador y elige para quién es el bot |
 | `/docs` | Lista los documentos que tiene cargados |
 | `/borrar` | Borra un documento |
 | `/codigo` | Genera un código nuevo para dar acceso a alguien del equipo |
-| `/usuarios` | Quién tiene acceso, y un botón para quitárselo |
+| `/usuarios` | Quién tiene acceso, y un botón para quitárselo. En un bot para clientes, cuántas preguntas te hacen |
+| `/empresa` | El nombre de tu empresa, para que se presente con él |
+| `/contacto` | A dónde manda a quien pregunte algo que no sabe |
+| `/enlace` | El enlace del bot para compartirlo con tus clientes |
 | `/costes` | Lo que llevas gastado este mes y la previsión a fin de mes |
 | `/limite` | Cambia el tope de gasto mensual |
 | `/logs` | Los últimos movimientos: quién ha entrado y quién lo ha intentado |
@@ -165,8 +173,10 @@ descarta cualquier instrucción que aparezca dentro de un documento.
 | `acceso.py` | Códigos, hash, autorizados, bloqueos y el registro de accesos |
 | `claude_api.py` | Cliente compartido, conteo de tokens, PDF escaneados, fotos y voz |
 | `extraccion.py` | PDF, DOCX, TXT, CSV, MD y saneado de nombres |
+| `web.py` | Leer las páginas web que pega el administrador |
+| `modo.py` | Elegir para quién es el bot, y el nombre y el contacto de la empresa |
 | `consulta.py` | El system en tres bloques, la caché y el historial |
-| `costes.py` | Contabilidad del gasto, tope mensual y aviso al 80% |
+| `costes.py` | Contabilidad del gasto, tope mensual, aviso al 80% y topes de los clientes |
 | `limites.py` | Preguntas por hora y bloqueo por códigos fallidos |
 | `copia.py` | El ZIP de seguridad y cuándo mandarlo solo |
 | `menu.py` | El teclado de botones y el menú de comandos |
@@ -194,6 +204,7 @@ Opcionales:
 | `OWNER_CHAT_ID` | vacío | Si se rellena, fija el administrador y desactiva el alta automática |
 | `LIMITE_MENSUAL_USD` | `20` | Tope de gasto mensual |
 | `LIMITE_PREGUNTAS_HORA` | `20` | Tope de preguntas por usuario y hora. El administrador queda exento |
+| `LIMITE_PREGUNTAS_HORA_CLIENTES` | `10` | Lo mismo en un bot para clientes |
 | `CACHE_TTL` | `1h` | Duración de la caché de documentos |
 | `RUTA_DATOS` | `/app/data` | En local se apunta a `./data` |
 | `OPENAI_API_KEY` | vacío | Si está, se transcriben las notas de voz |

@@ -4,11 +4,14 @@ import asyncio
 import contextlib
 import logging
 
-from telegram import Update
+from telegram import BotCommand, BotCommandScopeChat, Update
 from telegram.constants import ChatAction, ParseMode
 
+import acceso
 import ajustes
 import almacen
+import menu
+import textos
 
 log = logging.getLogger("empleado.comun")
 
@@ -176,3 +179,39 @@ async def escribiendo(update: Update, accion: str = ChatAction.TYPING):
             tarea.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await tarea
+
+
+async def registrar_comandos(
+    context, chat_id: int, es_owner: bool, para_clientes: bool = False
+) -> None:
+    """Rellena el menú de comandos de la barra de Telegram para ese chat.
+
+    Es distinto para cada uno, así que se pone por chat en vez de
+    globalmente. Si falla no pasa nada: los botones siguen ahí.
+    """
+    if es_owner:
+        lista = menu.COMANDOS_OWNER_CLIENTES if para_clientes else menu.COMANDOS_OWNER
+    else:
+        lista = menu.COMANDOS_CLIENTE if para_clientes else menu.COMANDOS_EMPLEADO
+    try:
+        await context.bot.set_my_commands(
+            [BotCommand(nombre, descripcion) for nombre, descripcion in lista],
+            scope=BotCommandScopeChat(chat_id),
+        )
+    except Exception:
+        log.warning("No he podido registrar los comandos de %s", chat_id)
+
+
+async def responder_no_permitido(
+    update: Update, texto: str, texto_cliente: str | None = None
+) -> None:
+    """Respuesta a quien pide algo que no le toca.
+
+    A un empleado se le dice que eso es cosa del administrador. A un cliente
+    ni siquiera se le cuenta que hay funciones de administración: para él,
+    ese comando simplemente no existe.
+    """
+    if update.effective_chat and acceso.es_cliente(update.effective_chat.id):
+        await responder(update, texto_cliente or textos.COMANDO_DESCONOCIDO_CLIENTE)
+        return
+    await responder(update, texto)

@@ -24,6 +24,11 @@ AYUDA = "❓ Ayuda"
 
 QUE_PREGUNTAR = "📚 Qué puedo preguntar"
 
+# Solo en los bots para clientes.
+EMPRESA = "🏢 Mi empresa"
+MIS_CLIENTES = "👥 Mis clientes"
+ENLACE = "🔗 Enlace para clientes"
+
 # El texto del botón lleva al nombre del comando. comandos.py se encarga de
 # despacharlo. Aquí solo vive la correspondencia.
 EQUIVALENCIAS = {
@@ -37,6 +42,9 @@ EQUIVALENCIAS = {
     RESPALDO: "backup",
     AYUDA: "ayuda",
     QUE_PREGUNTAR: "docs",
+    EMPRESA: "empresa",
+    MIS_CLIENTES: "usuarios",
+    ENLACE: "enlace",
 }
 
 
@@ -48,7 +56,9 @@ def comando_de(texto: str) -> str | None:
     return EQUIVALENCIAS.get(texto.strip())
 
 
-def teclado_owner() -> ReplyKeyboardMarkup:
+def teclado_owner(para_clientes: bool = False) -> ReplyKeyboardMarkup:
+    if para_clientes:
+        return teclado_owner_clientes()
     return ReplyKeyboardMarkup(
         [
             [KeyboardButton(SUBIR), KeyboardButton(DOCUMENTOS)],
@@ -62,6 +72,29 @@ def teclado_owner() -> ReplyKeyboardMarkup:
     )
 
 
+def teclado_owner_clientes() -> ReplyKeyboardMarkup:
+    """Sin código ni lista de usuarios, que en este modo no existen."""
+    return ReplyKeyboardMarkup(
+        [
+            [KeyboardButton(SUBIR), KeyboardButton(DOCUMENTOS)],
+            [KeyboardButton(COSTES), KeyboardButton(BORRAR)],
+            [KeyboardButton(MIS_CLIENTES), KeyboardButton(ENLACE)],
+            [KeyboardButton(EMPRESA), KeyboardButton(RESPALDO)],
+            [KeyboardButton(AYUDA)],
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Escribe tu pregunta o usa un botón",
+    )
+
+
+def teclado_cliente() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(AYUDA)]],
+        resize_keyboard=True,
+        input_field_placeholder="Escribe tu pregunta",
+    )
+
+
 def teclado_empleado() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[KeyboardButton(QUE_PREGUNTAR), KeyboardButton(AYUDA)]],
@@ -70,8 +103,10 @@ def teclado_empleado() -> ReplyKeyboardMarkup:
     )
 
 
-def teclado_para(es_owner: bool) -> ReplyKeyboardMarkup:
-    return teclado_owner() if es_owner else teclado_empleado()
+def teclado_para(es_owner: bool, para_clientes: bool = False) -> ReplyKeyboardMarkup:
+    if es_owner:
+        return teclado_owner(para_clientes)
+    return teclado_cliente() if para_clientes else teclado_empleado()
 
 
 # Los mismos comandos en el menú de la barra de Telegram, para quien prefiera
@@ -88,6 +123,26 @@ COMANDOS_OWNER = [
     ("logs", "Los últimos movimientos"),
     ("backup", "Descargar una copia de seguridad"),
     ("menu", "Volver a sacar los botones"),
+]
+
+COMANDOS_OWNER_CLIENTES = [
+    ("ayuda", "Ver todo lo que puedo hacer"),
+    ("doc", "Subir documentación o una web"),
+    ("docs", "Ver los documentos cargados"),
+    ("borrar", "Quitar un documento"),
+    ("empresa", "El nombre de tu empresa"),
+    ("contacto", "A dónde mando cuando no sé algo"),
+    ("enlace", "El enlace para tus clientes"),
+    ("usuarios", "Cuántas preguntas te hacen"),
+    ("costes", "Cuánto llevas gastado este mes"),
+    ("limite", "Cambiar el tope de gasto mensual"),
+    ("logs", "Los últimos movimientos"),
+    ("backup", "Descargar una copia de seguridad"),
+    ("menu", "Volver a sacar los botones"),
+]
+
+COMANDOS_CLIENTE = [
+    ("ayuda", "Qué puedes preguntarme"),
 ]
 
 COMANDOS_EMPLEADO = [

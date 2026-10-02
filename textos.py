@@ -33,7 +33,7 @@ AVISO_DATOS = (
 
 def bienvenida_owner(codigo: str) -> str:
     return (
-        "👋 <b>Ya eres el administrador de este bot</b>\n\n"
+        "🏢 <b>Tu Empleado Digital para el equipo</b>\n\n"
         "A partir de ahora esto es tu empleado digital. Tú le das la documentación "
         "de tu empresa y él responde las preguntas de tu equipo sobre ella.\n\n"
         "🔑 <b>Este es el código de acceso para tu gente:</b>\n\n"
@@ -68,6 +68,254 @@ def owner_vuelve(documentos: int) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Elegir para quién es el bot
+# ---------------------------------------------------------------------------
+
+ALTA_OWNER = (
+    "👋 <b>Ya eres el administrador de este bot</b>\n\n"
+    "Antes de empezar, una decisión."
+)
+
+
+ELEGIR_MODO = (
+    "<b>¿Para quién va a ser tu Empleado Digital?</b>\n\n"
+    "🏢 <b>Para tu equipo.</b> Solo entra quien tenga el código de acceso. Puedes "
+    "subir documentación interna: procedimientos, manuales, tarifas de coste...\n\n"
+    "🌍 <b>Para tus clientes.</b> Cualquiera con el enlace puede preguntarle, sin "
+    "código. Sube solo lo que pondrías en tu web: catálogo, precios de venta, "
+    "horarios, envíos, preguntas frecuentes. <b>Todo lo que subas lo podrá leer "
+    "cualquiera.</b>\n\n"
+    "⚠️ <b>Esto no se puede cambiar después.</b> Si dudas, elige equipo. Si algún "
+    "día quieres el otro, puedes montar un segundo bot."
+)
+
+BOTON_MODO_EQUIPO = "🏢 Para mi equipo"
+BOTON_MODO_CLIENTES = "🌍 Para mis clientes"
+BOTON_VOLVER_A_ELEGIR = "Volver a elegir"
+
+
+def confirmar_modo(modo: str) -> str:
+    if modo == "clientes":
+        return (
+            "🌍 <b>Vas a dejarlo para tus clientes</b>\n\n"
+            "Cualquiera que tenga el enlace podrá preguntarle, y todo lo que subas "
+            "lo podrá leer cualquiera.\n\n"
+            "<b>Esto no se puede cambiar después.</b> ¿Seguro?"
+        )
+    return (
+        "🏢 <b>Vas a dejarlo para tu equipo</b>\n\n"
+        "Solo entrará quien tenga el código de acceso que te voy a dar.\n\n"
+        "<b>Esto no se puede cambiar después.</b> ¿Seguro?"
+    )
+
+
+def boton_confirmar_modo(modo: str) -> str:
+    return "Sí, para mis clientes" if modo == "clientes" else "Sí, para mi equipo"
+
+
+def modo_ya_elegido(modo: str) -> str:
+    para = "tus clientes" if modo == "clientes" else "tu equipo"
+    return (
+        f"Este bot ya está preparado para {para}, y eso no se puede cambiar.\n\n"
+        "Si quieres el otro, puedes montar un segundo bot."
+    )
+
+
+MODO_ELEGIDO_EQUIPO = "🏢 <b>Hecho: este bot es para tu equipo.</b>"
+MODO_ELEGIDO_CLIENTES = "🌍 <b>Hecho: este bot es para tus clientes.</b>"
+
+
+ELIGE_MODO_PRIMERO = (
+    "☝️ Antes de nada tienes que elegir para quién es el bot. Te lo vuelvo a "
+    "enseñar."
+)
+
+
+# ---------------------------------------------------------------------------
+# Modo clientes: lo que ve el jefe
+# ---------------------------------------------------------------------------
+
+AVISO_DATOS_CLIENTES = (
+    "🔒 <b>Antes de subir nada, léete esto</b>\n\n"
+    "Todo lo que subas lo podrá leer <b>cualquier persona</b> que hable con el bot. "
+    "Sube solo lo que pondrías en tu web: catálogo, precios de venta, horarios, "
+    "envíos, garantías, preguntas frecuentes.\n\n"
+    "Nada de tarifas de coste, márgenes, procedimientos internos ni datos de "
+    "clientes o empleados. El bot además envía el contenido a la API de Claude "
+    "para poder responder."
+)
+
+
+def enlace_para_clientes(enlace: str) -> str:
+    return (
+        "🔗 <b>El enlace para tus clientes</b>\n\n"
+        f"{escape(enlace)}\n\n"
+        "Ponlo en tu web, en la firma del correo, en tus redes o en un código QR en "
+        "la tienda. Quien lo abra podrá preguntarle sin código."
+    )
+
+
+SIGUIENTE_PASO_CLIENTES = (
+    "📄 <b>Vamos con lo que tiene que saber</b>\n\n"
+    "Mándame tu catálogo, tus precios de venta, tus condiciones de envío, tus "
+    "preguntas frecuentes... Acepto PDF, Word, texto, CSV y fotos. También puedes "
+    "pegarme la dirección de tu web.\n\n"
+    "Cuando tengas algo cargado, ábrete el bot desde otro móvil y pregúntale como "
+    "si fueras un cliente."
+)
+
+
+RECORDATORIO_PUBLICO = (
+    "\n\n🌍 Recuerda que esto lo puede leer cualquiera que hable con el bot."
+)
+
+
+CODIGO_NO_EN_CLIENTES = (
+    "🌍 Este bot es para tus clientes, así que no hay código: cualquiera con el "
+    "enlace puede preguntarle."
+)
+
+
+def resumen_de_clientes(preguntas_hoy: int, preguntas_mes: int) -> str:
+    return (
+        "👥 <b>Tus clientes</b>\n\n"
+        f"Hoy te han hecho <b>{preguntas_hoy}</b> preguntas y este mes "
+        f"<b>{preguntas_mes}</b>.\n\n"
+        "No guardo quién es cada uno: en un bot para clientes no hace falta, y así "
+        "no guardas datos de nadie."
+    )
+
+
+def linea_gasto_clientes(hoy: str, mes: str, tope_dia: str) -> str:
+    return (
+        f"\n\n🌍 Tus clientes llevan gastado <b>{hoy}</b> hoy (como mucho "
+        f"{tope_dia} al día) y <b>{mes}</b> este mes."
+    )
+
+
+def aviso_clientes_mes(gastado: str, limite_dolares: float) -> str:
+    return (
+        "🌍 <b>He dejado de atender a tus clientes este mes</b>\n\n"
+        f"Entre todos se ha gastado ya <b>{gastado}</b>, el 90% del tope de "
+        f"{limite_dolares:.0f} dólares. Lo que queda te lo guardo a ti, para que "
+        "puedas seguir usando el bot.\n\n"
+        "Si quieres que siga atendiéndoles, sube el tope con /limite. Por ejemplo: "
+        "<code>/limite 40</code>"
+    )
+
+
+def aviso_clientes_dia(tope_dia: str) -> str:
+    return (
+        "🌍 <b>Tus clientes han llegado al tope de hoy</b>\n\n"
+        f"Han gastado {tope_dia}, que es lo máximo por día. Hasta mañana les digo "
+        "que vuelvan más tarde.\n\n"
+        "Ese tope es la décima parte del tope del mes. Si quieres que dé para más, "
+        "sube el del mes con /limite."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Modo clientes: lo que ve el cliente
+# ---------------------------------------------------------------------------
+
+def bienvenida_cliente(nombre_empresa: str) -> str:
+    quien = f"el asistente de <b>{escape(nombre_empresa)}</b>" if nombre_empresa else "un asistente virtual"
+    return (
+        f"👋 Hola, soy {quien}.\n\n"
+        "Pregúntame lo que necesites sobre nuestros productos y servicios y te "
+        "contesto al momento. Escríbemelo con tus palabras, como se lo preguntarías "
+        "a una persona."
+    )
+
+
+def ayuda_cliente(nombre_empresa: str) -> str:
+    sobre = f"sobre {escape(nombre_empresa)}" if nombre_empresa else "sobre la empresa"
+    return (
+        f"Puedes preguntarme lo que quieras {sobre}: productos, precios, horarios, "
+        "envíos, condiciones...\n\n"
+        "Escríbemelo con tus palabras. Si hay algo que no sé, te diré a quién "
+        "preguntárselo."
+    )
+
+
+COMANDO_DESCONOCIDO_CLIENTE = (
+    "🤔 Eso no lo entiendo.\n\n"
+    "Escríbeme tu pregunta con tus palabras y te contesto."
+)
+
+
+SOLO_TEXTO_CLIENTE = (
+    "✍️ Solo puedo leer mensajes de texto.\n\n"
+    "Escríbeme tu pregunta y te contesto al momento."
+)
+
+
+def _y_el_contacto(contacto: str) -> str:
+    if not contacto:
+        return ""
+    return f"\n\nMientras tanto, puedes contactar aquí: {escape(contacto)}"
+
+
+def sin_documentacion_cliente(contacto: str) -> str:
+    return (
+        "🙏 Todavía me están preparando y aún no puedo responder."
+        + _y_el_contacto(contacto)
+    )
+
+
+def clientes_sin_presupuesto(motivo: str, contacto: str) -> str:
+    cuando = "Vuelve a intentarlo mañana." if motivo == "dia" else "Vuelve a intentarlo más adelante."
+    return (
+        f"🙏 Ahora mismo no puedo atenderte. {cuando}"
+        + _y_el_contacto(contacto)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Nombre y contacto de la empresa
+# ---------------------------------------------------------------------------
+#
+# Estos dos van sin formato a propósito. La respuesta del jefe llega marcada
+# como respuesta a este mensaje, y se reconoce comparando su texto, que
+# Telegram devuelve sin las etiquetas.
+
+PREGUNTA_NOMBRE_EMPRESA = (
+    "🏢 ¿Cómo se llama tu empresa? Contéstame a este mensaje con el nombre, tal "
+    "cual quieres que lo diga."
+)
+
+PREGUNTA_CONTACTO = (
+    "📞 Cuando alguien me pregunte algo que no sé, ¿a dónde le mando? Contéstame "
+    "a este mensaje con un teléfono, un correo, un horario... lo que quieras que "
+    "diga."
+)
+
+ESCRIBE_EL_NOMBRE = "Nombre de tu empresa"
+ESCRIBE_EL_CONTACTO = "Teléfono, correo, horario..."
+
+
+def empresa_guardada(nombre: str) -> str:
+    return f"✅ Hecho. Ahora me presento como el asistente de <b>{escape(nombre)}</b>."
+
+
+def contacto_guardado(contacto: str) -> str:
+    return (
+        "✅ Hecho. Cuando no sepa algo, diré que contacten aquí:\n\n"
+        f"{escape(contacto)}"
+    )
+
+
+def demasiado_largo(maximo: int) -> str:
+    return (
+        f"✂️ Es demasiado largo. Como mucho {maximo} caracteres. Vuelve a escribir "
+        "el comando y contéstame algo más corto."
+    )
+
+
+RESPUESTA_VACIA_EMPRESA = "No me ha llegado nada. Vuelve a escribir el comando cuando quieras."
+
+
+# ---------------------------------------------------------------------------
 # Acceso de empleados
 # ---------------------------------------------------------------------------
 
@@ -81,7 +329,7 @@ PEDIR_CODIGO = (
 
 def codigo_correcto(nombre_empresa: str, mensaje_bienvenida: str) -> str:
     if nombre_empresa:
-        cabecera = f"✅ <b>Ya tienes acceso a la documentación de {nombre_empresa}</b>\n\n"
+        cabecera = f"✅ <b>Ya tienes acceso a la documentación de {escape(nombre_empresa)}</b>\n\n"
     else:
         cabecera = "✅ <b>Ya tienes acceso</b>\n\n"
     cuerpo = mensaje_bienvenida.strip() or (
@@ -135,7 +383,7 @@ def _listado(nombres: list[str]) -> str:
     return listado
 
 
-def ayuda_owner(documentos: int, nombres: list[str]) -> str:
+def ayuda_owner(documentos: int, nombres: list[str], para_clientes: bool = False) -> str:
     if documentos == 0:
         estado = (
             "📭 <b>Todavía no tengo documentación cargada.</b>\n"
@@ -152,16 +400,32 @@ def ayuda_owner(documentos: int, nombres: list[str]) -> str:
         "/doc  subir documentación o páginas web\n"
         "/docs  ver lo que tengo cargado\n"
         "/borrar  quitar un documento\n\n"
-        "<b>Tu gente</b>\n"
-        "/codigo  generar un código de acceso nuevo\n"
-        "/usuarios  ver quién tiene acceso y quitárselo\n"
-        "/logs  últimos accesos\n\n"
-        "<b>Tu dinero</b>\n"
+        + (_AYUDA_CLIENTES if para_clientes else _AYUDA_EQUIPO)
+        + "<b>Tu dinero</b>\n"
         "/costes  cuánto llevas gastado este mes\n"
         "/limite  cambiar el tope mensual\n\n"
         "<b>Por si acaso</b>\n"
         "/backup  descargar una copia de todo"
     )
+
+
+_AYUDA_EQUIPO = (
+    "<b>Tu gente</b>\n"
+    "/codigo  generar un código de acceso nuevo\n"
+    "/usuarios  ver quién tiene acceso y quitárselo\n"
+    "/logs  últimos accesos\n"
+    "/empresa  el nombre de tu empresa\n"
+    "/contacto  a quién mando cuando no sé algo\n\n"
+)
+
+_AYUDA_CLIENTES = (
+    "<b>Tu empresa y tus clientes</b>\n"
+    "/empresa  el nombre de tu empresa\n"
+    "/contacto  a dónde mando a quien pregunte algo que no sé\n"
+    "/enlace  el enlace para compartir con tus clientes\n"
+    "/usuarios  cuántas preguntas te hacen\n"
+    "/logs  últimos movimientos\n\n"
+)
 
 
 def ayuda_usuario(documentos: int, nombres: list[str]) -> str:
@@ -481,6 +745,16 @@ def problema_al_responder(motivo: str) -> str:
     return _PROBLEMAS.get(motivo, _PROBLEMAS["desconocido"])
 
 
+AVISO_PROBLEMA_CLIENTES = "🌍 <b>Tus clientes no están recibiendo respuesta.</b>\n\n"
+
+
+def problema_al_responder_cliente(motivo: str, contacto: str) -> str:
+    """A un cliente no se le habla de saldos ni de claves: no es asunto suyo."""
+    if motivo in ("demanda", "conexion"):
+        return _PROBLEMAS[motivo]
+    return clientes_sin_presupuesto("otro", contacto)
+
+
 # Los mismos fallos, pero contados a quien está subiendo un documento. Cambia
 # el tono porque cambia el interlocutor: subir documentos solo puede hacerlo el
 # owner, así que aquí no vale decirle "avisa al administrador". Se le dice qué
@@ -535,6 +809,7 @@ def informe_de_costes(
     proyeccion: str,
     documentos: int,
     tokens: str,
+    clientes: str = "",
 ) -> str:
     if porcentaje >= 100:
         semaforo = "🔴 Has llegado al tope, he dejado de responder"
@@ -564,7 +839,9 @@ def informe_de_costes(
         f"{semaforo}: has usado el <b>{porcentaje}%</b> de tu tope.\n\n"
         + actividad
         + f"\nTienes {documentos} {plural_documentos} cargados, "
-        f"{tokens} tokens en total.\n\n"
+        f"{tokens} tokens en total."
+        + clientes
+        + "\n\n"
         f"Tu tope está en {tope} dólares al mes, que es lo que se descuenta de "
         "tu saldo de Anthropic. Para cambiarlo: <code>/limite 30</code>"
     )
@@ -591,6 +868,7 @@ LIMITE_DEMASIADO_BAJO = (
 
 
 def tope_alcanzado_usuario(nombre_empresa: str) -> str:
+    nombre_empresa = escape(nombre_empresa)
     de_quien = f"de {nombre_empresa}" if nombre_empresa else "de la empresa"
     return (
         "🛑 Este mes ya se ha agotado el presupuesto del asistente.\n\n"
@@ -623,8 +901,10 @@ def aviso_80_por_ciento(gastado: str, limite_dolares: float, proyeccion: str) ->
     )
 
 
-def demasiadas_preguntas(minutos: int) -> str:
+def demasiadas_preguntas(minutos: int, de_cliente: bool = False) -> str:
     espera = "un minuto" if minutos <= 1 else f"{minutos} minutos"
+    if de_cliente:
+        return f"⏳ Has hecho muchas preguntas seguidas.\n\nEspera {espera} y seguimos."
     return (
         "⏳ Has hecho muchas preguntas seguidas.\n\n"
         f"Espera {espera} y seguimos. Es para que el presupuesto del mes llegue "

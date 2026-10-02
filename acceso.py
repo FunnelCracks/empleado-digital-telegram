@@ -106,6 +106,76 @@ async def registrar_owner(chat_id: int, nombre: str = "") -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Modo del bot: para el equipo o para los clientes
+# ---------------------------------------------------------------------------
+#
+# Se elige una vez, al crear el bot, y no se cambia nunca. Lo que se sube a
+# un bot de equipo puede ser interno; si el modo se pudiera cambiar, todo eso
+# quedaría a la vista de cualquiera con un solo botón.
+
+MODO_EQUIPO = "equipo"
+MODO_CLIENTES = "clientes"
+MODOS = (MODO_EQUIPO, MODO_CLIENTES)
+
+
+def _modo_de(config: dict[str, str]) -> str | None:
+    guardado = config.get("modo", "")
+    if guardado in MODOS:
+        return guardado
+    # Los bots montados antes de que existiera el modo ya tienen código de
+    # acceso y ningún modo guardado. Son de equipo y siguen igual que siempre.
+    if config.get("codigo_hash"):
+        return MODO_EQUIPO
+    return None
+
+
+def modo() -> str | None:
+    """El modo del bot, o None si el administrador todavía no lo ha elegido."""
+    return _modo_de(almacen.leer_config())
+
+
+def es_modo_clientes() -> bool:
+    return modo() == MODO_CLIENTES
+
+
+async def fijar_modo(nuevo: str) -> bool:
+    """Guarda el modo si aún no había ninguno. Devuelve si lo ha guardado.
+
+    Cualquier intento posterior se ignora, venga de un botón viejo, de una
+    pulsación repetida o de donde sea.
+    """
+    if nuevo not in MODOS:
+        return False
+    return await almacen.actualizar_config_si(
+        lambda config: _modo_de(config) is None,
+        modo=nuevo,
+        modo_desde=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    )
+
+
+def es_cliente(chat_id: int) -> bool:
+    """Alguien de fuera escribiendo a un bot para clientes."""
+    return es_modo_clientes() and not es_owner(chat_id)
+
+
+def puede_preguntar(chat_id: int) -> bool:
+    """Quién puede hacerle preguntas al bot.
+
+    El administrador siempre. En un bot para clientes, cualquiera. En uno de
+    equipo, solo quien ha dado el código. Mientras no se elija el modo, nadie
+    más que el administrador.
+    """
+    if es_owner(chat_id):
+        return True
+    actual = modo()
+    if actual == MODO_CLIENTES:
+        return True
+    if actual == MODO_EQUIPO:
+        return chat_id in autorizados()
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Autorizados
 # ---------------------------------------------------------------------------
 #

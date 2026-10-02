@@ -37,6 +37,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
 OWNER_CHAT_ID = os.getenv("OWNER_CHAT_ID", "").strip()
 LIMITE_MENSUAL_USD = _decimal("LIMITE_MENSUAL_USD", 20.0)
 LIMITE_PREGUNTAS_HORA = _entero("LIMITE_PREGUNTAS_HORA", 20)
+LIMITE_PREGUNTAS_HORA_CLIENTES = _entero("LIMITE_PREGUNTAS_HORA_CLIENTES", 10)
 CACHE_TTL = os.getenv("CACHE_TTL", "1h").strip() or "1h"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 
@@ -74,6 +75,10 @@ MAX_PAGINAS_PDF_API = 600  # limite de Anthropic para PDF en Sonnet 5
 # Parametros de la consulta.
 MAX_TOKENS_RESPUESTA = 1500
 TURNOS_HISTORIAL = 4
+
+# Cuántos chats se recuerdan a la vez. Con un equipo da igual, pero un bot
+# para clientes puede tener cientos y la memoria crecería sin parar.
+MAX_CHATS_EN_MEMORIA = 500
 
 # Alfabeto del codigo de acceso, sin caracteres que se confundan al
 # dictarlos por telefono: fuera I, L minuscula, 1, O y 0.
